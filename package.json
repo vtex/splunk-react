@@ -1,10 +1,11 @@
 {
   "name": "splunk-react",
   "version": "0.0.1",
-  "main": "index.js",
   "repository": "git@github.com:marcelovicentegc/splunk-react.git",
   "author": "Marcelo Cardoso <marcelovicentegc@gmail.com>",
   "license": "MIT",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
     "start": "webpack serve --config webpack.dev.config.js",
     "build": "rimraf build && tsc -p tsconfig.prod.json"
