@@ -22,7 +22,7 @@ function App() {
 const monitoring = new SplunkMonitoring({
   token: "12345",
   endpoint: "http://some-where-over-the-rainbow:9999",
-  vtex: {
+  vtexIO: {
     runtimeInfo: {
       account: "a",
       workspace: "b",
