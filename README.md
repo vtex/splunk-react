@@ -1,3 +1,5 @@
+[![splunk-react on npm](https://img.shields.io/npm/v/splunk-react?style=flat-square)](https://www.npmjs.com/package/splunk-react)
+
 <p align="center">
   <img alt="VTEX Admin" src="./assets/vtex_logo.svg" height="100" />
   <h3 align="center">splunk-react</h3>
@@ -6,9 +8,11 @@
 
 ---
 
-## SplunkMonitoring
+## SplunkMonitoring instance
 
 ```ts
+import { SplunkMonitoring } from "splunk-react";
+
 const monitoring = new SplunkMonitoring({
   token: "12345",
   endpoint: "http://my-splunk-endpoint:9999",

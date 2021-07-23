@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom";
 
-import { SplunkMonitoring, withErrorBoundary } from "../src";
+import { EventData, SplunkMonitoring, withErrorBoundary } from "../src";
 import { bomb } from "./bomb";
 
 function App() {
@@ -21,7 +21,22 @@ const monitoring = new SplunkMonitoring({
   endpoint: "http://some-where-over-the-rainbow:9999",
 });
 
-const WithErrorBoundary = withErrorBoundary(monitoring)(App);
+const getImportantData = async () => {
+  return await new Promise<EventData>((resolve, _) => {
+    setTimeout(() => {
+      resolve({
+        userId: "9876",
+      });
+    }, 2000);
+  });
+};
+
+const WithErrorBoundary = withErrorBoundary(monitoring, {
+  args: {
+    hello: "world",
+  },
+  fn: getImportantData,
+})(App);
 
 ReactDOM.render(
   <React.StrictMode>

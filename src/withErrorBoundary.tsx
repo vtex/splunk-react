@@ -1,7 +1,7 @@
 import React from "react";
 import hoistNonReactStatics from "hoist-non-react-statics";
 import type { ComponentType, ComponentProps } from "react";
-import { SplunkMonitoring } from "./clients/splunk";
+import { AdditionalArgs, SplunkMonitoring } from "./clients/splunk";
 
 /**
  * A HOC wrapper on top of the **logError** function that will log whenever the component **componentDidCatch**.
@@ -17,7 +17,13 @@ import { SplunkMonitoring } from "./clients/splunk";
  * export default withErrorBoundary(monitoring)(App)
  * ```
  */
-export function withErrorBoundary(splunk: SplunkMonitoring) {
+export function withErrorBoundary(
+  splunk: SplunkMonitoring,
+  /**
+   * Additional arguments to log to Splunk.
+   */
+  additionalArgs?: AdditionalArgs
+) {
   return function withBoundary<TProps>(
     WrappedComponent: ComponentType<TProps>
   ): ComponentType<TProps> {
@@ -29,9 +35,11 @@ export function withErrorBoundary(splunk: SplunkMonitoring) {
     > {
       public static readonly displayName = `WithErrorBoundary(${wrappedComponentName})`;
 
-      public componentDidCatch(error: Error) {
+      public async componentDidCatch(error: Error) {
         splunk.logError({
           error,
+          args: additionalArgs?.args,
+          fn: additionalArgs?.fn,
         });
 
         throw error;

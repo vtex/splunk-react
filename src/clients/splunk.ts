@@ -2,40 +2,6 @@ import SplunkEvents from "splunk-events";
 import type { ApolloError } from "apollo-client";
 import type { Config } from "splunk-events";
 
-export type SplunkMonitoringArgs = Omit<Config, "endpoint"> & {
-  /**
-   * Splunk server endpoint.
-   *
-   * @default public
-   */
-  endpoint: string;
-  /**
-   * VTEX IO specific data.
-   *
-   * Learn more on https://vtex.io/
-   */
-  vtexIO?: VTEXIO;
-};
-
-export type VTEXIO = {
-  runtimeInfo: RuntimeInfo;
-  appInfo: AppInfo;
-};
-
-export type AppInfo = {
-  appId: string;
-  appVersion: string;
-};
-
-export type RuntimeInfo = {
-  renderMajor: number;
-  workspace: string;
-  production: boolean;
-  account: string;
-};
-
-export type EventData = Record<string, string | number | undefined>;
-
 export class SplunkMonitoring {
   private splunkEvents: SplunkEvents | null = null;
   private vtexIO: VTEXIO | null = null;
@@ -59,6 +25,18 @@ export class SplunkMonitoring {
     }
 
     return this.splunkEvents;
+  };
+
+  private executeFn = async (fn?: AdditionalFn) => {
+    if (!fn) {
+      return null;
+    }
+
+    if (isAsync(fn)) {
+      return await fn();
+    }
+
+    return fn();
   };
 
   private shouldExecute = () => {
@@ -99,7 +77,7 @@ export class SplunkMonitoring {
       return null;
     }
 
-    const { metricName, data, logRate } = metricLog;
+    const { metricName, data, logRate, args } = metricLog;
     const { account, ...rest } = this.vtexIO!.runtimeInfo;
 
     if (logRate && (logRate > 100 || logRate < 0)) {
@@ -123,6 +101,7 @@ export class SplunkMonitoring {
         ...rest,
         ...(this.vtexIO?.appInfo ?? {}),
         ...(data ?? {}),
+        ...args,
       },
       account
     );
@@ -130,14 +109,14 @@ export class SplunkMonitoring {
     return this.splunkEvents;
   };
 
-  public logGraphQLError = (graphQLErrorLog: GraphQLErrorLog) => {
+  public logGraphQLError = async (graphQLErrorLog: GraphQLErrorLog) => {
     const shouldExecute = this.shouldExecute();
 
     if (!shouldExecute) {
       return null;
     }
 
-    const { error, variables, instance, type } = graphQLErrorLog;
+    const { error, variables, instance, type, args } = graphQLErrorLog;
     const { account, ...rest } = this.vtexIO!.runtimeInfo;
 
     this.splunkEvents!.logEvent(
@@ -149,7 +128,9 @@ export class SplunkMonitoring {
         ...rest,
         ...(this.vtexIO?.appInfo ?? {}),
         variables: variables && JSON.stringify(variables),
-        error: JSON.stringify(error),
+        error: error.stack ?? JSON.stringify(error),
+        message: error.message,
+        ...args,
       },
       account
     );
@@ -157,16 +138,18 @@ export class SplunkMonitoring {
     return this.splunkEvents;
   };
 
-  public logError = (errorLog: ErrorLog) => {
+  public logError = async (errorLog: ErrorLog) => {
     const shouldExecute = this.shouldExecute();
 
     if (!shouldExecute) {
       return null;
     }
 
-    const { error, instance: maybeInstance } = errorLog;
+    const { error, instance: maybeInstance, args, fn } = errorLog;
     const { account, ...rest } = this.vtexIO!.runtimeInfo;
     const instance = maybeInstance ?? "";
+
+    const fnArgs = await this.executeFn(fn);
 
     this.splunkEvents!.logEvent(
       "Critical",
@@ -178,6 +161,8 @@ export class SplunkMonitoring {
         ...(this.vtexIO?.appInfo ?? {}),
         error: error.stack ?? JSON.stringify(error),
         message: error.message,
+        ...args,
+        ...fnArgs,
       },
       account
     );
@@ -186,22 +171,67 @@ export class SplunkMonitoring {
   };
 }
 
-interface ErrorLog {
+export type SplunkMonitoringArgs = Omit<Config, "endpoint"> & {
+  /**
+   * Splunk server endpoint.
+   *
+   * @default public
+   */
+  endpoint: string;
+  /**
+   * VTEX IO specific data.
+   *
+   * Learn more on https://vtex.io/
+   */
+  vtexIO?: VTEXIO;
+};
+
+export type VTEXIO = {
+  runtimeInfo: RuntimeInfo;
+  appInfo: AppInfo;
+};
+
+export type AppInfo = {
+  appId: string;
+  appVersion: string;
+};
+
+export type RuntimeInfo = {
+  renderMajor: number;
+  workspace: string;
+  production: boolean;
+  account: string;
+};
+
+export type AdditionalArgs = {
+  args?: EventData;
+  fn?: AdditionalFn;
+};
+
+export type EventData = Record<string, string | number | undefined>;
+
+export type AdditionalFn = (() => EventData) | (() => Promise<EventData>);
+
+interface ErrorLog extends AdditionalArgs {
   error: Error;
   instance?: string;
 }
 
-interface GraphQLErrorLog {
+interface GraphQLErrorLog extends AdditionalArgs {
   error: ApolloError;
   variables?: any;
   instance: string;
   type: "QueryError" | "MutationError";
 }
 
-interface MetricLog {
+interface MetricLog extends AdditionalArgs {
   metricName: string;
   data?: EventData;
   logRate?: number; // number between 0 and 100.
 }
 
 const NON_VTEX = "non-vtex";
+
+function isAsync(fn: AdditionalFn) {
+  return fn.constructor.name === "AsyncFunction";
+}
