@@ -20,13 +20,19 @@ function App() {
 }
 
 const monitoring = new SplunkMonitoring({
-  token: "123",
-  endpoint: "123",
-  runtimeInfo: {
-    account: "a",
-    workspace: "b",
-    production: false,
-    renderMajor: 8,
+  token: "12345",
+  endpoint: "http://some-where-over-the-rainbow:9999",
+  vtex: {
+    runtimeInfo: {
+      account: "a",
+      workspace: "b",
+      production: false,
+      renderMajor: 8,
+    },
+    appInfo: {
+      appId: "myapp@0.x",
+      appVersion: "0.0.3",
+    },
   },
 });
 

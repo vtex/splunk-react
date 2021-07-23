@@ -9,7 +9,17 @@ export type SplunkMonitoringArgs = Omit<Config, "endpoint"> & {
    * @default public
    */
   endpoint: string;
+  vtex?: VTEX;
+};
+
+export type VTEX = {
   runtimeInfo: RuntimeInfo;
+  appInfo: AppInfo;
+};
+
+export type AppInfo = {
+  appId: string;
+  appVersion: string;
 };
 
 export type RuntimeInfo = {
@@ -23,14 +33,13 @@ export type EventData = Record<string, string | number | undefined>;
 
 export class SplunkMonitoring {
   private splunkEvents: SplunkEvents | null = null;
-  private runtimeInfo: RuntimeInfo | null = null;
+  private vtex: VTEX | null = null;
 
   private config = (args: SplunkMonitoringArgs) => {
-    const { token, endpoint, injectAdditionalInfo, runtimeInfo, ...rest } =
-      args;
+    const { token, endpoint, injectAdditionalInfo, vtex, ...rest } = args;
 
-    if (!this.runtimeInfo) {
-      this.runtimeInfo = runtimeInfo;
+    if (!this.vtex && vtex) {
+      this.vtex = vtex;
     }
 
     if (!this.splunkEvents) {
@@ -48,10 +57,21 @@ export class SplunkMonitoring {
   };
 
   private shouldExecute = () => {
-    if (!this.runtimeInfo) {
-      console.error("Runtime information was not set.");
+    if (!this.vtex) {
+      console.warn("VTEX-specific information is not set.");
 
-      return false;
+      this.vtex = {
+        runtimeInfo: {
+          account: NON_VTEX,
+          workspace: NON_VTEX,
+          renderMajor: 0,
+          production: false,
+        },
+        appInfo: {
+          appId: NON_VTEX,
+          appVersion: NON_VTEX,
+        },
+      };
     }
 
     if (!this.splunkEvents) {
@@ -75,7 +95,7 @@ export class SplunkMonitoring {
     }
 
     const { metricName, data, logRate } = metricLog;
-    const { account, ...rest } = this.runtimeInfo!;
+    const { account, ...rest } = this.vtex!.runtimeInfo;
 
     if (logRate && (logRate > 100 || logRate < 0)) {
       console.error(
@@ -96,6 +116,7 @@ export class SplunkMonitoring {
       metricName,
       {
         ...rest,
+        ...(this.vtex?.appInfo ?? {}),
         ...(data ?? {}),
       },
       account
@@ -112,7 +133,7 @@ export class SplunkMonitoring {
     }
 
     const { error, variables, instance, type } = graphQLErrorLog;
-    const { account, ...rest } = this.runtimeInfo!;
+    const { account, ...rest } = this.vtex!.runtimeInfo;
 
     this.splunkEvents!.logEvent(
       "Critical",
@@ -121,6 +142,7 @@ export class SplunkMonitoring {
       instance,
       {
         ...rest,
+        ...(this.vtex?.appInfo ?? {}),
         variables: variables && JSON.stringify(variables),
         error: JSON.stringify(error),
       },
@@ -138,7 +160,7 @@ export class SplunkMonitoring {
     }
 
     const { error, instance: maybeInstance } = errorLog;
-    const { account, ...rest } = this.runtimeInfo!;
+    const { account, ...rest } = this.vtex!.runtimeInfo;
     const instance = maybeInstance ?? "";
 
     this.splunkEvents!.logEvent(
@@ -148,6 +170,7 @@ export class SplunkMonitoring {
       instance,
       {
         ...rest,
+        ...(this.vtex?.appInfo ?? {}),
         error: error.stack ?? JSON.stringify(error),
         message: error.message,
       },
@@ -175,3 +198,5 @@ interface MetricLog {
   data?: EventData;
   logRate?: number; // number between 0 and 100.
 }
+
+const NON_VTEX = "non-vtex";
