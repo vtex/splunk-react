@@ -1,7 +1,7 @@
 {
   "name": "splunk-react",
   "version": "0.0.4",
-  "repository": "git@github.com:marcelovicentegc/splunk-react.git",
+  "repository": "git@github.com:vtex/splunk-react.git",
   "author": "Marcelo Cardoso <marcelovicentegc@gmail.com>",
   "license": "MIT",
   "main": "build/index.js",
